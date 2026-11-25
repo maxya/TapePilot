@@ -1,0 +1,190 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format_major",
+    "format_minor",
+    "volume_id",
+    "label_at_initialization",
+    "tape_profile",
+    "format_id",
+    "volume_header_sha256",
+    "archives",
+    "exported_at",
+    "recovery_instructions",
+    "hardware_profile",
+    "hardware_profile_version",
+    "caveats"
+  ],
+  "properties": {
+    "format_major": {
+      "const": 1
+    },
+    "format_minor": {
+      "const": 0
+    },
+    "volume_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "label_at_initialization": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "tape_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "block_mode",
+        "record_bytes",
+        "tar_blocking_factor",
+        "data_partitions",
+        "filemark_policy",
+        "hardware_compression",
+        "software_compression",
+        "encryption"
+      ],
+      "properties": {
+        "block_mode": {
+          "const": "variable"
+        },
+        "record_bytes": {
+          "const": 262144
+        },
+        "tar_blocking_factor": {
+          "const": 512
+        },
+        "data_partitions": {
+          "const": 1
+        },
+        "filemark_policy": {
+          "const": "single-on-close"
+        },
+        "hardware_compression": {
+          "type": "boolean"
+        },
+        "software_compression": {
+          "const": "none"
+        },
+        "encryption": {
+          "const": "none"
+        }
+      }
+    },
+    "format_id": {
+      "const": "tapepilot-volume"
+    },
+    "volume_header_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "archives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "archive_id",
+          "sequence",
+          "data_file_index",
+          "commit_file_index",
+          "data_stream_bytes",
+          "data_sha256",
+          "source_label",
+          "created_at",
+          "commit_sha256",
+          "verified_at",
+          "integrity_basis"
+        ],
+        "properties": {
+          "archive_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9223372036854775807
+          },
+          "data_file_index": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9223372036854775807
+          },
+          "commit_file_index": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9223372036854775807
+          },
+          "data_stream_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9223372036854775807,
+            "multipleOf": 262144
+          },
+          "data_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "source_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "commit_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "verified_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "integrity_basis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        }
+      }
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "recovery_instructions": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "hardware_profile": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "hardware_profile_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "caveats": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      }
+    }
+  }
+}

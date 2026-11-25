@@ -1,0 +1,32 @@
+name: tapepilot
+x-isolation: &isolation
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+services:
+  backend:
+    <<: *isolation
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777"]
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    volumes:
+      - state:/var/lib/tapepilot
+    healthcheck:
+      test: [CMD, /tapepilot, healthcheck]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  web:
+    <<: *isolation
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    tmpfs: [/tmp]
+    ports:
+      - "127.0.0.1:${TAPEPILOT_PORT:-8787}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  state:

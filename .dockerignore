@@ -1,0 +1,17 @@
+**
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!config/
+!config/tapepilot.example.yaml
+!deploy/
+!deploy/nginx.conf
+!web/
+!web/package*.json
+!web/src/
+!web/src/**
+!web/vite.config.ts
+!web/tsconfig.json

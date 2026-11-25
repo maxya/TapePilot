@@ -1,0 +1,5 @@
+{
+  "mode": "simulator",
+  "physical_writes_enabled": false,
+  "verify_after_write": true
+}

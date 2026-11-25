@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "magic",
+    "format_major",
+    "format_minor",
+    "volume_id",
+    "label_at_initialization",
+    "created_at",
+    "created_by_version",
+    "media_generation",
+    "native_capacity_bytes",
+    "tape_profile",
+    "archive_format",
+    "hash_algorithm"
+  ],
+  "properties": {
+    "magic": {
+      "const": "tapepilot-volume"
+    },
+    "format_major": {
+      "const": 1
+    },
+    "format_minor": {
+      "const": 0
+    },
+    "volume_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "label_at_initialization": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "created_by_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "media_generation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "native_capacity_bytes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "tape_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "block_mode",
+        "record_bytes",
+        "tar_blocking_factor",
+        "data_partitions",
+        "filemark_policy",
+        "hardware_compression",
+        "software_compression",
+        "encryption"
+      ],
+      "properties": {
+        "block_mode": {
+          "const": "variable"
+        },
+        "record_bytes": {
+          "const": 262144
+        },
+        "tar_blocking_factor": {
+          "const": 512
+        },
+        "data_partitions": {
+          "const": 1
+        },
+        "filemark_policy": {
+          "const": "single-on-close"
+        },
+        "hardware_compression": {
+          "type": "boolean"
+        },
+        "software_compression": {
+          "const": "none"
+        },
+        "encryption": {
+          "const": "none"
+        }
+      }
+    },
+    "archive_format": {
+      "const": "pax-tar"
+    },
+    "hash_algorithm": {
+      "const": "sha256"
+    }
+  }
+}

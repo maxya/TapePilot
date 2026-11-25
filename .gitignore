@@ -1,0 +1,6 @@
+/bin/
+/state/
+.env
+node_modules/
+.svelte-kit/
+build/

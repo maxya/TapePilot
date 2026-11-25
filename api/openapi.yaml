@@ -1,0 +1,36 @@
+openapi: 3.1.0
+info:
+  title: TapePilot
+  version: 0.0.0
+paths:
+  /api/v1/health:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: Simulator backend is reachable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, mode]
+                properties:
+                  status: {const: ok}
+                  mode: {const: simulator}
+components:
+  schemas:
+    OperationalError:
+      description: Reserved envelope for future authenticated operations
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              enum: [MEDIA_MISMATCH, POSITION_UNCERTAIN, WRITE_NOT_ARMED, VERIFICATION_FAILED, STATE_CONFLICT]
+            message: {type: string}
+            request_id: {type: string}
+            details: {type: object}

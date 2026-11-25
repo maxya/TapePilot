@@ -1,0 +1,40 @@
+{
+  "format_major": 1,
+  "format_minor": 0,
+  "volume_id": "c8dc1492-b9f0-4e65-8c5b-24b2d89e37ab",
+  "label_at_initialization": "LAB-001",
+  "tape_profile": {
+    "block_mode": "variable",
+    "record_bytes": 262144,
+    "tar_blocking_factor": 512,
+    "data_partitions": 1,
+    "filemark_policy": "single-on-close",
+    "hardware_compression": false,
+    "software_compression": "none",
+    "encryption": "none"
+  },
+  "format_id": "tapepilot-volume",
+  "volume_header_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "archives": [
+    {
+      "archive_id": "6fa69f68-9d52-4542-9614-b19f1074ef49",
+      "sequence": 1,
+      "data_file_index": 1,
+      "commit_file_index": 2,
+      "data_stream_bytes": 524288,
+      "data_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "source_label": "NAS archive",
+      "created_at": "2026-11-24T21:10:00Z",
+      "commit_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "verified_at": "2026-11-24T21:10:00Z",
+      "integrity_basis": "readback"
+    }
+  ],
+  "exported_at": "2026-11-24T21:10:00Z",
+  "recovery_instructions": "Read each qualified tape file independently and compare its raw digest before extraction.",
+  "hardware_profile": "simulator",
+  "hardware_profile_version": "draft",
+  "caveats": [
+    "Synthetic example"
+  ]
+}

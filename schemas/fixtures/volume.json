@@ -1,0 +1,23 @@
+{
+  "magic": "tapepilot-volume",
+  "format_major": 1,
+  "format_minor": 0,
+  "volume_id": "c8dc1492-b9f0-4e65-8c5b-24b2d89e37ab",
+  "label_at_initialization": "LAB-001",
+  "created_at": "2026-11-24T21:00:00Z",
+  "created_by_version": "0.1.0-alpha.1",
+  "media_generation": "LTO-5",
+  "native_capacity_bytes": 1500000000000,
+  "tape_profile": {
+    "block_mode": "variable",
+    "record_bytes": 262144,
+    "tar_blocking_factor": 512,
+    "data_partitions": 1,
+    "filemark_policy": "single-on-close",
+    "hardware_compression": false,
+    "software_compression": "none",
+    "encryption": "none"
+  },
+  "archive_format": "pax-tar",
+  "hash_algorithm": "sha256"
+}

@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "magic",
+    "format_major",
+    "format_minor",
+    "volume_id",
+    "volume_header_sha256",
+    "sequence",
+    "archive_id",
+    "job_id",
+    "source_label",
+    "source_selection",
+    "created_at",
+    "data_file_index",
+    "commit_file_index",
+    "data_stream_bytes",
+    "data_record_count",
+    "data_sha256",
+    "previous_commit_sha256",
+    "archive_format",
+    "record_bytes",
+    "source_consistency"
+  ],
+  "properties": {
+    "magic": {
+      "const": "tapepilot-commit"
+    },
+    "format_major": {
+      "const": 1
+    },
+    "format_minor": {
+      "const": 0
+    },
+    "volume_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "volume_header_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "archive_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "source_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "source_selection": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\x00]+$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "data_file_index": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "commit_file_index": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "data_stream_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807,
+      "multipleOf": 262144
+    },
+    "data_record_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "data_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "previous_commit_sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "archive_format": {
+      "const": "pax-tar"
+    },
+    "record_bytes": {
+      "const": 262144
+    },
+    "source_consistency": {
+      "enum": [
+        "live-best-effort",
+        "operator-supplied-snapshot"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sequence": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "previous_commit_sha256": {
+            "type": "null"
+          },
+          "data_file_index": {
+            "const": 1
+          },
+          "commit_file_index": {
+            "const": 2
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "previous_commit_sha256": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

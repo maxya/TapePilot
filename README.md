@@ -1,5 +1,7 @@
 # SpoolArk — project bootstrap
 
+> **TapePilot** is the official name. Apply [NAME_OVERRIDE.md](NAME_OVERRIDE.md) to the historical specifications. [Local development and Phase 0 checks](docs/runbooks/development.md).
+
 **Open tape backup. Your data. Your tapes. Forever.**
 
 Proposed repository: `spoolark` · Target: `v0.1.0-alpha.1` onward · Proposed license: Apache-2.0 · Specification baseline: 2026-11-24
