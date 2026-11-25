@@ -1,4 +1,5 @@
 **
+!.node-version
 !go.mod
 !go.sum
 !cmd/
@@ -6,12 +7,27 @@
 !internal/
 !internal/**
 !config/
+config/*
 !config/tapepilot.example.yaml
 !deploy/
+deploy/*
 !deploy/nginx.conf
 !web/
-!web/package*.json
+web/*
+!web/package.json
+!web/package-lock.json
 !web/src/
 !web/src/**
 !web/vite.config.ts
+!web/build-version.ts
 !web/tsconfig.json
+# Local artifacts and private settings never belong in build context.
+internal/webui/assets/
+**/node_modules/
+**/.svelte-kit/
+**/build/
+**/test-results/
+**/playwright-report/
+**/coverage/
+**/.env*
+**/secrets/

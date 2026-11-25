@@ -3,21 +3,31 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/maxya/TapePilot/internal/domain"
+	"github.com/maxya/TapePilot/internal/media"
 	"math"
 	"strings"
 )
 
 type Volume struct {
-	ID, Kind, Label, Location, Generation string
-	State                                 domain.MediaState
-	HeaderSHA256                          string
-	CreatedAt                             string
+	Barcode      string            `json:"barcode,omitempty"`
+	ID           string            `json:"id"`
+	Kind         string            `json:"kind"`
+	Label        string            `json:"label"`
+	Location     string            `json:"location"`
+	Generation   string            `json:"generation"`
+	State        domain.MediaState `json:"state"`
+	HeaderSHA256 string            `json:"header_sha256"`
+	CreatedAt    string            `json:"created_at"`
 }
 
 func (s *Store) CreateVolume(ctx context.Context, v Volume) error {
+	if !ValidBarcode(v.Barcode) {
+		return ErrOperations
+	}
 	if _, err := uuid.Parse(v.ID); err != nil {
 		return err
 	}
@@ -28,12 +38,12 @@ func (s *Store) CreateVolume(ctx context.Context, v Volume) error {
 		v.CreatedAt = stamp()
 	}
 	return s.transaction(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, "INSERT INTO volumes VALUES(?,?,?,?,?,?,?,?)", v.ID, v.Kind, v.Label, v.Location, v.Generation, v.State, nullable(v.HeaderSHA256), v.CreatedAt)
+		_, err := tx.ExecContext(ctx, "INSERT INTO volumes(id,kind,label,location,generation,state,header_sha256,created_at,barcode) VALUES(?,?,?,?,?,?,?,?,?)", v.ID, v.Kind, v.Label, v.Location, v.Generation, v.State, nullable(v.HeaderSHA256), v.CreatedAt, v.Barcode)
 		return err
 	})
 }
 func (s *Store) GetVolume(ctx context.Context, id string) (v Volume, err error) {
-	err = s.db.QueryRowContext(ctx, "SELECT id,kind,label,location,generation,state,COALESCE(header_sha256,''),created_at FROM volumes WHERE id=?", id).Scan(&v.ID, &v.Kind, &v.Label, &v.Location, &v.Generation, &v.State, &v.HeaderSHA256, &v.CreatedAt)
+	err = s.db.QueryRowContext(ctx, "SELECT id,kind,label,location,generation,state,COALESCE(header_sha256,''),created_at,barcode FROM volumes WHERE id=?", id).Scan(&v.ID, &v.Kind, &v.Label, &v.Location, &v.Generation, &v.State, &v.HeaderSHA256, &v.CreatedAt, &v.Barcode)
 	return
 }
 
@@ -130,12 +140,15 @@ func (s *Store) RecordExpectedWrite(ctx context.Context, job, dataDigest string,
 }
 
 type Member struct {
-	ID                              int64
-	Path, RawPath, ParentPath, Type string
-	Size                            int64
-	Mtime                           string
-	Mode                            int64
-	LinkTarget                      string
+	ID         int64  `json:"id"`
+	Path       string `json:"path"`
+	RawPath    string `json:"raw_path"`
+	ParentPath string `json:"parent_path"`
+	Type       string `json:"type"`
+	Size       int64  `json:"size"`
+	Mtime      string `json:"mtime"`
+	Mode       int64  `json:"mode"`
+	LinkTarget string `json:"link_target"`
 }
 
 func (s *Store) StageMembers(ctx context.Context, attempt string, members []Member) error {
@@ -168,19 +181,26 @@ func (s *Store) StageMembers(ctx context.Context, attempt string, members []Memb
 }
 
 type Archive struct {
-	ID, VolumeID, JobID        string
-	Sequence, DataIndex        int64
-	CommitIndex                *int64
-	SourceLabel, CreatedAt     string
-	StreamBytes                int64
-	SHA256, CommitSHA256       string
-	Integrity                  domain.Integrity
-	IntegrityBasis, VerifiedAt string
-	RestoreEligible            bool
+	ID              string           `json:"id"`
+	VolumeID        string           `json:"volume_id"`
+	JobID           string           `json:"job_id"`
+	Sequence        int64            `json:"sequence"`
+	DataIndex       int64            `json:"data_file_index"`
+	CommitIndex     *int64           `json:"commit_file_index"`
+	SourceLabel     string           `json:"source_label"`
+	CreatedAt       string           `json:"created_at"`
+	StreamBytes     int64            `json:"stream_bytes"`
+	SHA256          string           `json:"sha256"`
+	CommitSHA256    string           `json:"commit_sha256"`
+	Integrity       domain.Integrity `json:"integrity"`
+	IntegrityBasis  string           `json:"integrity_basis"`
+	VerifiedAt      string           `json:"verified_at"`
+	RestoreEligible bool             `json:"restore_eligible"`
 }
 type Verification struct {
 	ID, JobID, ArchiveID, Basis, ExpectedSHA256, ActualSHA256 string
 	ActualCommitSHA256                                        string
+	Metadata                                                  json.RawMessage
 	ExpectedBytes, ActualBytes                                int64
 	IdentityValid, FormatValid                                bool
 }
@@ -270,10 +290,15 @@ func insertArchive(ctx context.Context, tx *sql.Tx, a Archive) error {
 	if a.CreatedAt == "" {
 		a.CreatedAt = stamp()
 	}
-	if a.VerifiedAt == "" {
+	normalized, err := catalogInstant(a.CreatedAt)
+	if err != nil {
+		return err
+	}
+	a.CreatedAt = normalized
+	if a.VerifiedAt == "" && a.Integrity == domain.Verified {
 		a.VerifiedAt = stamp()
 	}
-	_, err := tx.ExecContext(ctx, "INSERT INTO archives VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", a.ID, a.VolumeID, nullable(a.JobID), a.Sequence, a.DataIndex, a.CommitIndex, a.SourceLabel, a.CreatedAt, a.StreamBytes, a.SHA256, nullable(a.CommitSHA256), a.Integrity, a.IntegrityBasis, a.VerifiedAt, a.RestoreEligible)
+	_, err = tx.ExecContext(ctx, "INSERT INTO archives VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", a.ID, a.VolumeID, nullable(a.JobID), a.Sequence, a.DataIndex, a.CommitIndex, a.SourceLabel, a.CreatedAt, a.StreamBytes, a.SHA256, nullable(a.CommitSHA256), a.Integrity, a.IntegrityBasis, nullable(a.VerifiedAt), a.RestoreEligible)
 	return err
 }
 func (s *Store) GetArchive(ctx context.Context, id string) (a Archive, err error) {
@@ -333,6 +358,25 @@ func (s *Store) PublishInitializedVolume(ctx context.Context, job string, v Veri
 		if err := insertVerification(ctx, tx, v); err != nil {
 			return err
 		}
+		if len(v.Metadata) > 0 {
+			var label media.Volume
+			if err := json.Unmarshal(v.Metadata, &label); err != nil {
+				return err
+			}
+			if err := label.Validate(); err != nil {
+				return err
+			}
+			if label.VolumeID != volume {
+				return ErrEvidence
+			}
+			canonical, err := canonicalMetadata(v.Metadata)
+			if err != nil {
+				return err
+			}
+			if err = saveMetadata(ctx, tx, volume, canonical); err != nil {
+				return err
+			}
+		}
 		if _, err := tx.ExecContext(ctx, "UPDATE volumes SET state='MANAGED',header_sha256=? WHERE id=?", expected, volume); err != nil {
 			return err
 		}
@@ -350,7 +394,7 @@ func (s *Store) ListVolumes(ctx context.Context, limit int) ([]Volume, error) {
 	if limit < 1 || limit > 500 {
 		limit = 100
 	}
-	rows, err := s.db.QueryContext(ctx, "SELECT id,kind,label,location,generation,state,COALESCE(header_sha256,''),created_at FROM volumes ORDER BY created_at,id LIMIT ?", limit)
+	rows, err := s.db.QueryContext(ctx, "SELECT id,kind,label,location,generation,state,COALESCE(header_sha256,''),created_at,barcode FROM volumes ORDER BY created_at,id LIMIT ?", limit)
 	if err != nil {
 		return nil, err
 	}
@@ -358,10 +402,16 @@ func (s *Store) ListVolumes(ctx context.Context, limit int) ([]Volume, error) {
 	out := []Volume{}
 	for rows.Next() {
 		var v Volume
-		if err = rows.Scan(&v.ID, &v.Kind, &v.Label, &v.Location, &v.Generation, &v.State, &v.HeaderSHA256, &v.CreatedAt); err != nil {
+		if err = rows.Scan(&v.ID, &v.Kind, &v.Label, &v.Location, &v.Generation, &v.State, &v.HeaderSHA256, &v.CreatedAt, &v.Barcode); err != nil {
 			return nil, err
 		}
 		out = append(out, v)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) ArchiveCount(ctx context.Context, volume string) (int64, error) {
+	var count int64
+	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM archives WHERE volume_id=?", volume).Scan(&count)
+	return count, err
 }

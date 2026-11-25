@@ -40,7 +40,7 @@ func nullable(v string) any {
 	}
 	return v
 }
-func (s *Store) Enqueue(ctx context.Context, j Job) (Job, error) {
+func prepareJob(j Job) (Job, error) {
 	if j.ID == "" {
 		j.ID = uuid.NewString()
 	}
@@ -55,28 +55,38 @@ func (s *Store) Enqueue(ctx context.Context, j Job) (Job, error) {
 	}
 	j.State = domain.Queued
 	j.CreatedAt = stamp()
-	err := s.transaction(ctx, func(tx *sql.Tx) error {
-		if j.DedupeKey != "" {
-			old, err := scanJob(tx.QueryRowContext(ctx, "SELECT "+jobColumns+" FROM jobs WHERE dedupe_key=?", j.DedupeKey))
-			if err == nil {
-				if old.Kind != j.Kind || old.VolumeID != j.VolumeID || string(old.Options) != string(j.Options) {
-					return ErrConflict
-				}
-				j = old
-				return nil
+	return j, nil
+}
+func enqueueJobTx(ctx context.Context, tx *sql.Tx, j Job) (Job, error) {
+	if j.DedupeKey != "" {
+		old, err := scanJob(tx.QueryRowContext(ctx, "SELECT "+jobColumns+" FROM jobs WHERE dedupe_key=?", j.DedupeKey))
+		if err == nil {
+			if old.Kind != j.Kind || old.VolumeID != j.VolumeID || string(old.Options) != string(j.Options) {
+				return Job{}, ErrConflict
 			}
-			if !errors.Is(err, sql.ErrNoRows) {
-				return err
-			}
+			return old, nil
 		}
-		_, err := tx.ExecContext(ctx, "INSERT INTO jobs(id,kind,state,volume_id,options_json,dedupe_key,created_at) VALUES(?,?,?,?,?,?,?)", j.ID, j.Kind, j.State, nullable(j.VolumeID), string(j.Options), nullable(j.DedupeKey), j.CreatedAt)
-		if err != nil {
-			return err
+		if !errors.Is(err, sql.ErrNoRows) {
+			return Job{}, err
 		}
-		return event(ctx, tx, j.ID, "QUEUED", "Job queued")
-	})
+	}
+	if _, err := tx.ExecContext(ctx, "INSERT INTO jobs(id,kind,state,volume_id,options_json,dedupe_key,created_at) VALUES(?,?,?,?,?,?,?)", j.ID, j.Kind, j.State, nullable(j.VolumeID), string(j.Options), nullable(j.DedupeKey), j.CreatedAt); err != nil {
+		return Job{}, err
+	}
+	if err := event(ctx, tx, j.ID, "QUEUED", "Job queued"); err != nil {
+		return Job{}, err
+	}
+	return j, nil
+}
+func (s *Store) Enqueue(ctx context.Context, j Job) (Job, error) {
+	j, err := prepareJob(j)
+	if err != nil {
+		return Job{}, err
+	}
+	err = s.transaction(ctx, func(tx *sql.Tx) error { var err error; j, err = enqueueJobTx(ctx, tx, j); return err })
 	return j, err
 }
+
 func (s *Store) GetJob(ctx context.Context, id string) (Job, error) {
 	return scanJob(s.db.QueryRowContext(ctx, "SELECT "+jobColumns+" FROM jobs WHERE id=?", id))
 }
@@ -156,8 +166,17 @@ func (s *Store) Transition(ctx context.Context, id string, version int64, to dom
 		if uncertain != 0 && (to == domain.Failed || to == domain.Cancelled) {
 			return ErrEvidence
 		}
-		if to == domain.Succeeded && (j.Kind == domain.Backup || j.Kind == domain.Initialize) {
+		if to == domain.Succeeded && (j.Kind == domain.Backup || j.Kind == domain.Initialize || j.Kind == domain.Restore) {
 			return ErrEvidence
+		}
+		if to == domain.Succeeded && j.Kind == domain.Import {
+			var staged int
+			if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM catalog_attempts WHERE job_id=?", id).Scan(&staged); err != nil {
+				return err
+			}
+			if staged != 0 {
+				return ErrEvidence
+			}
 		}
 		if to == domain.Succeeded {
 			if err = completion(ctx, tx, j); err != nil {
@@ -192,6 +211,11 @@ func (s *Store) Transition(ctx context.Context, id string, version int64, to dom
 		}
 		if to == domain.RecoveryRequired {
 			if _, err = tx.ExecContext(ctx, "UPDATE volumes SET state='QUARANTINED' WHERE id IN(SELECT volume_id FROM write_intents WHERE job_id=?)", id); err != nil {
+				return err
+			}
+		}
+		if terminal(to) && to != domain.Succeeded {
+			if err = cleanStaging(ctx, tx, id); err != nil {
 				return err
 			}
 		}
@@ -259,8 +283,24 @@ func (s *Store) Reconcile(ctx context.Context) error {
 			if err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(write_may_have_started),0) FROM write_intents WHERE job_id=?", j.id).Scan(&uncertain); err != nil {
 				return err
 			}
+			current, err := scanJob(tx.QueryRowContext(ctx, "SELECT "+jobColumns+" FROM jobs WHERE id=?", j.id))
+			if err != nil {
+				return err
+			}
+			var assessment int
+			if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM media_assessments WHERE job_id=? AND finalized=0", j.id).Scan(&assessment); err != nil {
+				return err
+			}
+			// A process crash cannot prove its read descriptor and lease closed
+			// or final identity remained stable. Never promote its staged prefix.
+			if _, err = tx.ExecContext(ctx, "UPDATE media_assessments SET invalidated=1,complete=0 WHERE job_id=? AND finalized=0", j.id); err != nil {
+				return err
+			}
+			if _, err = finalizeMediaAssessment(ctx, tx, current, false, false); err != nil {
+				return err
+			}
 			state := domain.Failed
-			if uncertain != 0 || (j.kind == string(domain.Restore) && strings.Contains(j.phase, "publish")) {
+			if assessment != 0 || uncertain != 0 || (j.kind == string(domain.Restore) && strings.Contains(j.phase, "publish")) {
 				state = domain.RecoveryRequired
 			}
 			if _, err = tx.ExecContext(ctx, "UPDATE jobs SET state=?,error_code='INTERRUPTED',state_version=state_version+1,active_slot=NULL,completed_at=? WHERE id=?", state, stamp(), j.id); err != nil {
@@ -271,6 +311,9 @@ func (s *Store) Reconcile(ctx context.Context) error {
 					return err
 				}
 			}
+			if err = cleanStaging(ctx, tx, j.id); err != nil {
+				return err
+			}
 			if err = event(ctx, tx, j.id, string(state), "Interrupted job reconciled without replay"); err != nil {
 				return err
 			}
@@ -280,8 +323,11 @@ func (s *Store) Reconcile(ctx context.Context) error {
 }
 
 type Event struct {
-	ID                              int64
-	JobID, Timestamp, Code, Message string
+	ID        int64  `json:"id"`
+	JobID     string `json:"job_id"`
+	Timestamp string `json:"timestamp"`
+	Code      string `json:"code"`
+	Message   string `json:"message"`
 }
 
 func (s *Store) Events(ctx context.Context, id string, after int64, limit int) ([]Event, error) {
@@ -302,10 +348,4 @@ func (s *Store) Events(ctx context.Context, id string, after int64, limit int) (
 		out = append(out, e)
 	}
 	return out, rows.Err()
-}
-func (s *Store) RecordRestorePublication(ctx context.Context, id string) error {
-	return s.transaction(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, "INSERT INTO completion_evidence(job_id,verified_spool,published) VALUES(?,1,1)", id)
-		return err
-	})
 }

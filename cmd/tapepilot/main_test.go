@@ -53,6 +53,7 @@ func TestOfflineSimulatorCLI(t *testing.T) {
 			t.Fatal(name, err, string(data))
 		}
 	}
+	call("verify", j.VolumeID)
 	call("revoke", j.VolumeID)
 	if err := run(context.Background(), conf, false, []string{"backup", j.VolumeID, "sample", "sample.txt"}, &bytes.Buffer{}); err == nil {
 		t.Fatal("revoked enrollment allowed backup")

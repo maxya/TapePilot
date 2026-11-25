@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/maxya/TapePilot/internal/notify"
+	linux "github.com/maxya/TapePilot/internal/tape/linux"
 	"io"
 	"os"
 	"path/filepath"
@@ -18,12 +20,19 @@ var ErrInvalid = errors.New("INVALID_CONFIG")
 var rootID = regexp.MustCompile("^[a-z][a-z0-9_-]{0,63}$")
 
 type Settings struct {
-	StateDir     string
-	Sources      map[string]string
-	RestoreRoots map[string]string
+	PhysicalRead      *linux.Config
+	SMTP              *notify.Config
+	PublicOrigin      string
+	StateDir          string
+	Sources           map[string]string
+	RestoreRoots      map[string]string
+	LegacyRoots       map[string]string
+	SpoolReserveBytes int64
 }
 
-func Default() Settings          { return Settings{StateDir: "/var/lib/tapepilot"} }
+func Default() Settings {
+	return Settings{PublicOrigin: "http://127.0.0.1:8787", StateDir: "/var/lib/tapepilot", SpoolReserveBytes: 10 << 30}
+}
 func Validate(r io.Reader) error { _, err := Read(r); return err }
 func Read(r io.Reader) (Settings, error) {
 	c := Default()
@@ -48,12 +57,32 @@ func Read(r io.Reader) (Settings, error) {
 	}
 	for k, v := range fields {
 		switch k {
+		case "physical_read":
+			var physical linux.Config
+			if json.Unmarshal(v, &physical) != nil || !safeDir(physical.ProfileFile) || !safeDir(physical.LockDir) {
+				return c, ErrInvalid
+			}
+			c.PhysicalRead = &physical
+		case "smtp":
+			var smtp notify.Config
+			if json.Unmarshal(v, &smtp) != nil || smtp.Validate() != nil {
+				return c, ErrInvalid
+			}
+			c.SMTP = &smtp
+		case "public_origin":
+			if json.Unmarshal(v, &c.PublicOrigin) != nil || !ValidOrigin(c.PublicOrigin) {
+				return c, ErrInvalid
+			}
 		case "state_dir":
 			c.StateDir = ""
 			if err = json.Unmarshal(v, &c.StateDir); err != nil || !safeDir(c.StateDir) {
 				return c, ErrInvalid
 			}
-		case "sources", "restore_roots":
+		case "spool_reserve_bytes":
+			if string(v) == "null" || json.Unmarshal(v, &c.SpoolReserveBytes) != nil || c.SpoolReserveBytes < 0 {
+				return c, ErrInvalid
+			}
+		case "sources", "restore_roots", "legacy_roots":
 			roots, e := object(json.NewDecoder(bytes.NewReader(v)))
 			if e != nil {
 				return c, e
@@ -68,6 +97,8 @@ func Read(r io.Reader) (Settings, error) {
 			}
 			if k == "sources" {
 				c.Sources = paths
+			} else if k == "legacy_roots" {
+				c.LegacyRoots = paths
 			} else {
 				c.RestoreRoots = paths
 			}
@@ -76,7 +107,7 @@ func Read(r io.Reader) (Settings, error) {
 		}
 	}
 	paths := []string{c.StateDir}
-	for _, group := range []map[string]string{c.Sources, c.RestoreRoots} {
+	for _, group := range []map[string]string{c.Sources, c.RestoreRoots, c.LegacyRoots} {
 		for _, p := range group {
 			for _, prev := range paths {
 				if p == prev || strings.HasPrefix(p, prev+"/") || strings.HasPrefix(prev, p+"/") {
@@ -104,7 +135,7 @@ func safeDir(p string) bool {
 // and restore roots must already exist and be controlled by the administrator.
 func (c Settings) CheckHost() error {
 	paths := map[string]bool{c.StateDir: true}
-	for _, g := range []map[string]string{c.Sources, c.RestoreRoots} {
+	for _, g := range []map[string]string{c.Sources, c.RestoreRoots, c.LegacyRoots} {
 		for _, p := range g {
 			paths[p] = false
 		}

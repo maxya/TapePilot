@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"github.com/maxya/TapePilot/internal/domain"
 	"github.com/maxya/TapePilot/internal/source"
 	"github.com/maxya/TapePilot/internal/tape"
 	"io"
@@ -307,5 +308,8 @@ func TestTarNonzeroAfterSourceMutation(t *testing.T) {
 	out := &mutateSink{path: file}
 	if _, e = produce(context.Background(), p, out, ""); !errors.Is(e, ErrProducer) {
 		t.Fatal("tar producer failure lost", e)
+	}
+	if domain.ExecutionFailureCode(e) != domain.SourceChanged {
+		t.Fatal("producer mutation cause lost", e)
 	}
 }

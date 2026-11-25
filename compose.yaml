@@ -1,11 +1,16 @@
 name: tapepilot
 x-isolation: &isolation
+  init: true
   read_only: true
+  networks: [private]
   cap_drop: [ALL]
   security_opt: [no-new-privileges:true]
 services:
   backend:
     <<: *isolation
+    stop_grace_period: 2m
+    pids_limit: 256
+    mem_limit: 2g
     tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777"]
     build:
       context: .
@@ -19,10 +24,18 @@ services:
       retries: 5
   web:
     <<: *isolation
+    networks: [edge, private]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/api/v1/health]
+      interval: 5s
+      timeout: 3s
+      retries: 8
     build:
       context: .
       dockerfile: deploy/web.Dockerfile
-    tmpfs: [/tmp]
+    pids_limit: 64
+    mem_limit: 128m
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777"]
     ports:
       - "127.0.0.1:${TAPEPILOT_PORT:-8787}:8080"
     depends_on:
@@ -30,3 +43,8 @@ services:
         condition: service_healthy
 volumes:
   state:
+
+networks:
+  edge: {}
+  private:
+    internal: true

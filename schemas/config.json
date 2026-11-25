@@ -43,6 +43,87 @@
         "minLength": 2,
         "pattern": "^/"
       }
+    },
+    "legacy_roots": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 2,
+        "pattern": "^/"
+      }
+    },
+    "spool_reserve_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "public_origin": {
+      "type": "string",
+      "maxLength": 512,
+      "pattern": "^https?://"
+    },
+    "smtp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host",
+        "port",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "username": {
+          "type": "string"
+        },
+        "password_file": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        }
+      }
+    },
+    "physical_read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device",
+        "expected_identity",
+        "profile_file",
+        "lock_dir"
+      ],
+      "properties": {
+        "device": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lock_dir": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
 }

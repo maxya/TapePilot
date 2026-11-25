@@ -1,0 +1,23 @@
+# Physical write qualification software
+
+The released physical write-profile allowlist is empty. `BeginWriteQualification` always returns `PHYSICAL_WRITES_DISABLED`, and the guarded raw write opener also refuses every authority. The existing read-only adapter continues rejecting writer and append requests. Host configuration, profile edits, environment variables and HTTP cannot issue hardware write authority.
+
+The qualification-session state machine is exercised only by a private synthetic provider in tests. It defines the software contract for a future reviewed physical provider. That provider must retain the exclusive interprocess drive lease, reidentify the drive and media, observe generation and known position under that lease, validate the full on-media chain, and durably maintain write intent and quarantine evidence. The current release has no production provider that constructs this session.
+
+A permit binds the operator reference, exact job and durable intent UUIDs, intended volume UUID, drive identity, profile fingerprint, exclusive lease ID, fresh media generation, observation nonce and file index. Permits are single-use and expire within one minute. The explicit supervised session deadline is bounded to 24 hours. Expiration or cancellation cannot authorize a replacement commit over an uncertain tail.
+
+Initialization separately requires local sacrificial-media confirmation and a positive qualified blank witness at known BOT with no recorded data or existing volume/header identity. Blank detection alone cannot authorize initialization. Managed append requires a freshly validated full header/data/commit chain, a nonzero raw header digest, exact previous commit reference, correct pair arithmetic, clean EOD and a known zero-block boundary. Unknown, protected, sealed, revoked or quarantined media cannot open a writer.
+
+Every data and commit opening repeats policy/enrollment checks and fresh scope/position checks. Possible-open intent is durable before the provider can open a write descriptor. Commit authority exists only immediately after this same session checked a nonempty data close. It does not survive process restart, lease change, media change, failed close or uncertain record I/O.
+
+The guarded low-level implementation contains one raw Linux write syscall per exact 262144-byte record. It has no short-write loop, record padding or application retry. EOM, short or failed writes, cancellation, zero-record close, failed close, failed open and interrupted data/commit boundaries quarantine the session. Repeated close calls return the first close outcome without another descriptor close or filemark. Closing an uncommitted data session records an incomplete tail. Quarantine persists through the provider and also blocks the in-memory session if persistence fails.
+
+Accepted bytes, data close and commit close are separate observations. This layer never declares a job successful, verified or restore-eligible. Mandatory independent readback, exact byte/hash comparison, strict TAR/commit validation, confirmed identity and durable catalog publication remain engine responsibilities. A later append needs a new full-chain observation. Synthetic engine tests provide application-independent GNU tar recovery evidence.
+
+## External qualification still required
+
+Before a future code change can promote a write profile, an authorized operator must complete the original HW-03 through HW-10 procedures on explicitly identified sacrificial media. Capture actual drive/firmware/HBA/kernel and utility evidence, non-rewinding mapping, block limits, exact record sizes, single checked-close filemark/flush semantics, EOD and append positioning, write-protection handling, two independent appends, earlier archive digests, interrupted tails, EOM and crash behavior. Reconnects and physical behavior changes must close write authorization.
+
+The future production provider and its engine integration require independent review, operator signoff, readback and independent recovery evidence before allowlist promotion. Editing the read-only profile's approval field cannot perform that promotion. Physical end-of-media filling, process termination, driver settings, bus resets and all physical tape commands require separate operator authorization. No physical test has been run for this software component.
+
+The synthetic qualification tests cover blank confirmation, stale proofs, wrong identity/header/chain/index/generation/profile/lease/nonce, enrollment changes before data/commit, permit expiry/reuse, exact record calls, short writes, EOM, failed opens/writes/closes, cancellation, commit faults, crash tails and two fresh append sessions. They establish software behavior and provide no hardware qualification.

@@ -38,3 +38,16 @@ func TestCheckHostRejectsSymlinkAncestor(t *testing.T) {
 		t.Fatal("accepted symlink ancestor")
 	}
 }
+
+func TestPublicOriginRequiresExactLocalHTTPOrTLS(t *testing.T) {
+	for _, s := range []string{"http://127.0.0.1:8787", "http://[::1]:8787", "https://archive.example"} {
+		if !ValidOrigin(s) {
+			t.Error(s)
+		}
+	}
+	for _, s := range []string{"http://archive.example", "https://user@archive.example", "https://archive.example:99999", "https://archive.example/path", "http://localhost:0"} {
+		if ValidOrigin(s) {
+			t.Error(s)
+		}
+	}
+}

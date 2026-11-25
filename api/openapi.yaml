@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  title: TapePilot
-  version: 0.0.0
+  title: TapePilot simulator API
+  version: 0.1.0-development
 paths:
   /api/v1/health:
     get:
@@ -14,23 +14,1967 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [status, mode]
+                required:
+                - status
+                - mode
                 properties:
-                  status: {const: ok}
-                  mode: {const: simulator}
+                  status:
+                    const: ok
+                  mode:
+                    const: simulator
+  /api/v1/auth/session:
+    get:
+      summary: Get current or anonymous CSRF session
+      operationId: getAuthSession
+      security: []
+      responses:
+        '200':
+          description: Get current or anonymous CSRF session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate and rotate session
+      operationId: postAuthLogin
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Authenticate and rotate session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+  /api/v1/auth/logout:
+    post:
+      summary: Revoke session
+      operationId: postAuthLogout
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Revoke session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+  /api/v1/system/doctor:
+    get:
+      summary: Read simulator configuration summary
+      operationId: getSystemDoctor
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read simulator configuration summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Info'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+  /api/v1/system/info:
+    get:
+      summary: Read simulator configuration summary
+      operationId: getSystemInfo
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read simulator configuration summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Info'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+  /api/v1/drives:
+    get:
+      summary: List drives
+      operationId: getDrives
+      security:
+      - session: []
+      responses:
+        '200':
+          description: List drives
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Drive'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+  /api/v1/drives/{id}:
+    get:
+      summary: Read Drive
+      operationId: getDrivesId
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read Drive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Drive'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/volumes:
+    get:
+      summary: List volumes
+      operationId: getVolumes
+      security:
+      - session: []
+      responses:
+        '200':
+          description: List volumes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Volume'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+    post:
+      summary: Create unclassified local inventory record
+      operationId: postVolumes
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '201':
+          description: Create unclassified local inventory record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Volume'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OriginVolume'
+  /api/v1/volumes/{id}:
+    get:
+      summary: Read Volume
+      operationId: getVolumesId
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read Volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Volume'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Update local inventory label and location
+      operationId: patchVolumesId
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Update local inventory label and location
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Volume'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditInventory'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/archives:
+    get:
+      summary: List archives
+      operationId: getArchives
+      security:
+      - session: []
+      responses:
+        '200':
+          description: List archives
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Archive'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: volume_id
+        in: query
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: string
+  /api/v1/archives/{id}:
+    get:
+      summary: Read Archive
+      operationId: getArchivesId
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read Archive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Archive'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/backup-profiles:
+    get:
+      summary: List backup-profiles
+      operationId: getBackupProfiles
+      security:
+      - session: []
+      responses:
+        '200':
+          description: List backup-profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Profile'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+    post:
+      summary: Create Profile
+      operationId: postBackupProfiles
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '201':
+          description: Create Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+  /api/v1/backup-profiles/{id}:
+    get:
+      summary: Read Profile
+      operationId: getBackupProfilesId
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Update by expected revision
+      operationId: patchBackupProfilesId
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Update by expected revision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfilePatch'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/schedules:
+    get:
+      summary: List schedules
+      operationId: getSchedules
+      security:
+      - session: []
+      responses:
+        '200':
+          description: List schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Schedule'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+    post:
+      summary: Create Schedule
+      operationId: postSchedules
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '201':
+          description: Create Schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Schedule'
+  /api/v1/schedules/{id}:
+    get:
+      summary: Read Schedule
+      operationId: getSchedulesId
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read Schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Update by expected revision
+      operationId: patchSchedulesId
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Update by expected revision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchedulePatch'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/jobs:
+    get:
+      summary: List jobs
+      operationId: getJobs
+      security:
+      - session: []
+      responses:
+        '200':
+          description: List jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: state
+        in: query
+        schema:
+          type: string
+  /api/v1/jobs/{id}:
+    get:
+      summary: Read Job
+      operationId: getJobsId
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read Job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/sources:
+    get:
+      summary: List configured source IDs
+      operationId: getSources
+      security:
+      - session: []
+      responses:
+        '200':
+          description: List configured source IDs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Source'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+  /api/v1/sources/{id}/children:
+    get:
+      summary: Browse source children
+      operationId: getSourcesIdChildren
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Browse source children
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Child'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: path
+        in: query
+        schema:
+          type: string
+  /api/v1/drives/{id}/rewind:
+    post:
+      summary: Queue rewind
+      operationId: postDrivesIdRewind
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '202':
+          description: Queue rewind
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/drives/{id}/unload:
+    post:
+      summary: Queue unload
+      operationId: postDrivesIdUnload
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '202':
+          description: Queue unload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/drives/{id}/inspect:
+    post:
+      summary: Queue inspect
+      operationId: postDrivesIdInspect
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '202':
+          description: Queue inspect
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/drives/{id}/insert:
+    post:
+      summary: Select synthetic cartridge
+      operationId: postDrivesIdInsert
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Select synthetic cartridge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simple'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Insert'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/volumes/{id}/import:
+    post:
+      summary: Request import
+      operationId: postVolumesIdImport
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '202':
+          description: Request import
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/volumes/{id}/verify:
+    post:
+      summary: Request verify
+      operationId: postVolumesIdVerify
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '202':
+          description: Request verify
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/volumes/{id}/seal:
+    post:
+      summary: Request seal
+      operationId: postVolumesIdSeal
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '202':
+          description: Request seal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simple'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/imports:
+    post:
+      summary: Queue explicit read-only catalog import
+      operationId: postImports
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '202':
+          description: Queue explicit read-only catalog import
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Import'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/archives/{id}/members:
+    get:
+      summary: Browse catalog members
+      operationId: getArchivesIdMembers
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Browse catalog members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: parent_path
+        in: query
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: string
+  /api/v1/catalog/search:
+    get:
+      summary: Search offline catalog
+      operationId: getCatalogSearch
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Search offline catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+      - name: volume_id
+        in: query
+        schema:
+          type: string
+      - name: volume_label
+        in: query
+        schema:
+          type: string
+      - name: archive_id
+        in: query
+        schema:
+          type: string
+      - name: source_label
+        in: query
+        schema:
+          type: string
+      - name: job_id
+        in: query
+        schema:
+          type: string
+      - name: created_after
+        in: query
+        schema:
+          type: string
+      - name: created_before
+        in: query
+        schema:
+          type: string
+      - name: parent_path
+        in: query
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: string
+  /api/v1/backup-profiles/{id}/plan:
+    post:
+      summary: Preview validated operation
+      operationId: postBackupProfilesIdPlan
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '201':
+          description: Preview validated operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupPlan'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Revision'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/backup-profiles/{id}/run:
+    post:
+      summary: Queue immutable plan
+      operationId: postBackupProfilesIdRun
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '202':
+          description: Queue immutable plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Run'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/restores/plan:
+    post:
+      summary: Preview validated operation
+      operationId: postRestoresPlan
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '201':
+          description: Preview validated operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestorePlan'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreSelection'
+  /api/v1/restores/run:
+    post:
+      summary: Queue immutable plan
+      operationId: postRestoresRun
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '202':
+          description: Queue immutable plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Run'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/plans/{id}:
+    get:
+      summary: Read unexpired preview
+      operationId: getPlansId
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read unexpired preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simple'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/jobs/{id}/events:
+    get:
+      summary: Read durable job events
+      operationId: getJobsIdEvents
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read durable job events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: after
+        in: query
+        schema:
+          type: string
+  /api/v1/jobs/{id}/stream:
+    get:
+      summary: Stream snapshots and durable events with Last-Event-ID replay
+      operationId: getJobsIdStream
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Stream snapshots and durable events with Last-Event-ID replay
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/jobs/{id}/cancel:
+    post:
+      summary: Request cancel
+      operationId: postJobsIdCancel
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Request cancel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/jobs/{id}/recheck-media:
+    post:
+      summary: Request recheck-media
+      operationId: postJobsIdRecheckMedia
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Request recheck-media
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/notifications:
+    get:
+      summary: Read inbox
+      operationId: getNotifications
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read inbox
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: after
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: string
+  /api/v1/notifications/{id}/read:
+    post:
+      summary: Mark notification read
+      operationId: postNotificationsIdRead
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '200':
+          description: Mark notification read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simple'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Simple'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/audit:
+    get:
+      summary: Read audit events
+      operationId: getAudit
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Read audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Audit'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: after
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: string
+  /api/v1/volumes/{id}/recovery-descriptor:
+    get:
+      summary: Download portable recovery descriptor
+      operationId: getVolumesIdRecoveryDescriptor
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Download portable recovery descriptor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simple'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/exports:
+    post:
+      summary: Create expiring private export
+      operationId: postExports
+      security:
+      - session: []
+        csrf: []
+      responses:
+        '201':
+          description: Create expiring private export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Export'
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+  /api/v1/exports/{id}:
+    get:
+      summary: Download unexpired export
+      operationId: getExportsId
+      security:
+      - session: []
+      responses:
+        '200':
+          description: Download unexpired export
+          content:
+            application/octet-stream: {}
+        default:
+          description: Request refused or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalError'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
 components:
   schemas:
     OperationalError:
-      description: Reserved envelope for future authenticated operations
+      description: Stable error code and request identifier.
       type: object
-      required: [error]
+      required:
+      - error
       properties:
         error:
           type: object
-          required: [code, message, request_id]
+          required:
+          - code
+          - message
+          - request_id
           properties:
             code:
-              enum: [MEDIA_MISMATCH, POSITION_UNCERTAIN, WRITE_NOT_ARMED, VERIFICATION_FAILED, STATE_CONFLICT]
-            message: {type: string}
-            request_id: {type: string}
-            details: {type: object}
+              type: string
+            message:
+              type: string
+            request_id:
+              type: string
+            details:
+              type: object
+    Session:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+        csrf_token:
+          type: string
+      required:
+      - authenticated
+      - csrf_token
+    Login:
+      type: object
+      properties:
+        password:
+          type: string
+      required:
+      - password
+      additionalProperties: false
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        state:
+          type: string
+        phase:
+          type: string
+        volume_id:
+          type: string
+        options: {}
+        state_version:
+          type: integer
+        created_at:
+          type: string
+        completed_at:
+          type: string
+        error_code:
+          type: string
+    Volume:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        label:
+          type: string
+        location:
+          type: string
+        barcode:
+          type: string
+          maxLength: 128
+          description: Optional manual catalog metadata, never used as tape identity.
+        generation:
+          type: string
+        state:
+          type: string
+        header_sha256:
+          type: string
+        created_at:
+          type: string
+    Drive:
+      type: object
+      properties:
+        id:
+          type: string
+        mode:
+          type: string
+        status:
+          type: string
+        cartridge_id:
+          type: string
+        capacity_bytes:
+          type: integer
+        used_bytes:
+          type: integer
+        write_protected:
+          type: boolean
+        uncertain:
+          type: boolean
+    Archive:
+      $ref: ../schemas/archive-response.json
+    Member:
+      type: object
+      properties:
+        id:
+          type: integer
+        path:
+          type: string
+        raw_path:
+          type: string
+        parent_path:
+          type: string
+        type:
+          type: string
+        size:
+          type: integer
+        mtime:
+          type: string
+        mode:
+          type: integer
+        link_target:
+          type: string
+        archive_id:
+          type: string
+        volume_id:
+          type: string
+        volume_label:
+          type: string
+        data_file_index:
+          type: integer
+        integrity:
+          type: string
+        integrity_basis:
+          type: string
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+        name: &id001
+          type: string
+        source_id: &id002
+          type: string
+        relative_selection: &id003
+          type: string
+        exclusions: &id004
+          type: array
+          items:
+            type: string
+        target_volume_id: &id005
+          type: string
+        enabled: &id006
+          type: boolean
+        revision: &id007
+          type: integer
+        updated_at:
+          type: string
+      required:
+      - name
+      - source_id
+      - target_volume_id
+    Schedule:
+      type: object
+      properties:
+        id:
+          type: string
+        profile_id: &id008
+          type: string
+        operation:
+          type: string
+          enum: [BACKUP, VERIFY]
+          default: BACKUP
+          description: VERIFY rereads the profile target without source access or write enrollment.
+        cadence: &id009
+          type: string
+        timezone: &id010
+          type: string
+        local_time: &id011
+          type: string
+        weekday: &id012
+          type: integer
+        enabled: &id013
+          type: boolean
+        revision: &id014
+          type: integer
+        updated_at:
+          type: string
+      required:
+      - profile_id
+      - cadence
+      - timezone
+      - local_time
+    RestoreSelection:
+      type: object
+      properties:
+        archive_id:
+          type: string
+        member_ids:
+          type: array
+          items:
+            type: integer
+        all:
+          type: boolean
+        restore_root_id:
+          type: string
+        destination_slug:
+          type: string
+        legacy_source_id:
+          type: string
+        legacy_profile:
+          type: string
+        legacy_confirmation:
+          type: boolean
+      required:
+      - archive_id
+      - restore_root_id
+      - destination_slug
+      additionalProperties: false
+    RestorePlan:
+      type: object
+      properties:
+        id:
+          type: string
+        archive_id:
+          type: string
+        volume_id:
+          type: string
+        restore_root_id:
+          type: string
+        destination_slug:
+          type: string
+        selected_members:
+          type: integer
+        expanded_members:
+          type: integer
+        requested_members:
+          type: integer
+        output_bytes:
+          type: integer
+        spool_bytes:
+          type: integer
+        members: {}
+        truncated:
+          type: boolean
+        expires_at:
+          type: string
+        metadata_policy:
+          type: string
+        integrity_basis:
+          type: string
+    BackupPlan:
+      type: object
+      properties:
+        id:
+          type: string
+        revision:
+          type: integer
+        entries:
+          type: integer
+        logical_bytes:
+          type: integer
+        estimated_bytes:
+          type: integer
+        volume_id:
+          type: string
+        expires_at:
+          type: string
+        sparse_files:
+          type: integer
+    Run:
+      type: object
+      properties:
+        plan_id:
+          type: string
+        revision:
+          type: integer
+      required:
+      - plan_id
+      additionalProperties: false
+    Event:
+      type: object
+      properties:
+        id:
+          type: integer
+        job_id:
+          type: string
+        timestamp:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+    Export:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        filename:
+          type: string
+        volume_id:
+          type: string
+        bytes:
+          type: integer
+        sha256:
+          type: string
+        expires_at:
+          type: string
+        created_at:
+          type: string
+    Info:
+      type: object
+      properties:
+        mode:
+          type: string
+        physical_writes_enabled:
+          type: boolean
+        qualified_profiles:
+          type: integer
+        restore_roots:
+          type: array
+          items:
+            type: string
+        legacy_roots:
+          type: array
+          items:
+            type: string
+    Import:
+      type: object
+      properties:
+        mode:
+          type: string
+        expected_volume_id:
+          type: string
+        source_id:
+          type: string
+        profile:
+          type: string
+        label:
+          type: string
+        volume_id:
+          type: string
+        confirmed:
+          type: boolean
+      required:
+      - mode
+      additionalProperties: false
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        job_id:
+          type: string
+        created_at:
+          type: string
+        read_at:
+          type:
+          - string
+          - 'null'
+        message:
+          type: string
+    Audit:
+      type: object
+      properties:
+        id:
+          type: integer
+        actor:
+          type: string
+        action:
+          type: string
+        object:
+          type: string
+        created_at:
+          type: string
+    Simple:
+      type: object
+      properties: {}
+    Source:
+      type: object
+      properties:
+        id:
+          type: string
+    Child:
+      type: object
+      properties:
+        name:
+          type: string
+        directory:
+          type: boolean
+    OriginVolume:
+      type: object
+      properties:
+        label:
+          type: string
+        location:
+          type: string
+        barcode:
+          type: string
+          maxLength: 128
+          description: Optional manual catalog metadata, never used as tape identity.
+      required:
+      - label
+      additionalProperties: false
+    EditInventory:
+      type: object
+      properties:
+        label:
+          type: string
+        location:
+          type: string
+        barcode:
+          type: string
+          maxLength: 128
+          description: Optional manual catalog metadata, never used as tape identity.
+        previous_label:
+          type: string
+        previous_location:
+          type: string
+        previous_barcode:
+          type: string
+          maxLength: 128
+      required:
+      - label
+      - previous_label
+      dependentRequired:
+        barcode: [previous_barcode]
+      additionalProperties: false
+    Insert:
+      type: object
+      properties:
+        cartridge_id:
+          type: string
+      required:
+      - cartridge_id
+      additionalProperties: false
+    Revision:
+      type: object
+      properties:
+        revision:
+          type: integer
+      additionalProperties: false
+    ExportRequest:
+      type: object
+      properties:
+        kind:
+          type: string
+        volume_id:
+          type: string
+      required:
+      - kind
+      additionalProperties: false
+    ProfilePatch:
+      type: object
+      properties:
+        name: *id001
+        source_id: *id002
+        relative_selection: *id003
+        exclusions: *id004
+        target_volume_id: *id005
+        enabled: *id006
+        revision: *id007
+      required:
+      - revision
+      additionalProperties: false
+    SchedulePatch:
+      type: object
+      properties:
+        profile_id: *id008
+        operation:
+          type: string
+          enum: [BACKUP, VERIFY]
+          description: VERIFY rereads the profile target without source access or write enrollment.
+        cadence: *id009
+        timezone: *id010
+        local_time: *id011
+        weekday: *id012
+        enabled: *id013
+        revision: *id014
+      required:
+      - revision
+      additionalProperties: false
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: tapepilot_session
+      description: HTTPS uses the __Host-tapepilot_session cookie. Explicit loopback
+        HTTP uses tapepilot_session.
+    csrf:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token

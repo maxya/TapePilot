@@ -36,6 +36,7 @@ type InitOptions struct {
 	Confirmed   bool   `json:"confirmed"`
 }
 type BackupOptions struct {
+	PlanDigest  string   `json:"plan_digest,omitempty"`
 	SourceID    string   `json:"source_id"`
 	Selection   string   `json:"selection"`
 	Exclusions  []string `json:"exclusions"`
@@ -79,6 +80,22 @@ func decodeOptions(raw []byte, dest any) error {
 		if !ok || seen[name] {
 			return ErrPolicy
 		}
+		switch dest.(type) {
+		case *InitOptions:
+			switch name {
+			case "cartridge_id", "generation", "confirmed":
+			default:
+				return ErrPolicy
+			}
+		case *BackupOptions:
+			switch name {
+			case "source_id", "selection", "exclusions", "source_label", "plan_digest":
+			default:
+				return ErrPolicy
+			}
+		default:
+			return ErrPolicy
+		}
 		seen[name] = true
 		var value json.RawMessage
 		if d.Decode(&value) != nil {
@@ -105,7 +122,14 @@ func (e *Engine) Execute(ctx context.Context, j store.Job) (resultErr error) {
 	if j.Kind != domain.Initialize && j.Kind != domain.Backup {
 		return ErrPolicy
 	}
-	reporter, err := progress.New(j.ID, e.Store)
+	var reporter *progress.Reporter
+	previous, err := e.Store.Progress(ctx, j.ID)
+	switch {
+	case err == nil:
+		reporter, err = progress.FromSnapshot(previous, e.Store)
+	case errors.Is(err, store.ErrNotFound):
+		reporter, err = progress.New(j.ID, e.Store)
+	}
 	if err != nil {
 		return err
 	}
@@ -222,7 +246,11 @@ func (e *Engine) initialize(ctx context.Context, j store.Job, v store.Volume, l 
 	if err = e.step("before_publish"); err != nil {
 		return err
 	}
-	return e.Store.PublishInitializedVolume(ctx, j.ID, store.Verification{JobID: j.ID, Basis: "WRITE_READBACK", ExpectedSHA256: digest(raw), ActualSHA256: scanned.Header.SHA256, ExpectedBytes: int64(len(raw)), ActualBytes: scanned.Header.Bytes, IdentityValid: true, FormatValid: true})
+	metadata, err := json.Marshal(label)
+	if err != nil {
+		return err
+	}
+	return e.Store.PublishInitializedVolume(ctx, j.ID, store.Verification{Metadata: metadata, JobID: j.ID, Basis: "WRITE_READBACK", ExpectedSHA256: digest(raw), ActualSHA256: scanned.Header.SHA256, ExpectedBytes: int64(len(raw)), ActualBytes: scanned.Header.Bytes, IdentityValid: true, FormatValid: true})
 }
 func (e *Engine) writeMetadata(ctx context.Context, l *sim.Lease, permit tape.WritePermit, raw []byte, phase string, reporter *progress.Reporter) error {
 	if err := e.step("before_" + phase + "_open"); err != nil {
@@ -271,6 +299,15 @@ func (e *Engine) backup(ctx context.Context, j store.Job, v store.Volume, l *sim
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, plan.Close()) }()
+	if options.PlanDigest != "" {
+		digest, e := plan.Digest()
+		if e != nil {
+			return e
+		}
+		if digest != options.PlanDigest {
+			return source.ErrChanged
+		}
+	}
 	status, err := l.Status(ctx)
 	if err != nil {
 		return err

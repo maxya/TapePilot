@@ -20,6 +20,9 @@ import (
 
 var ErrFormat = errors.New("invalid or unsupported tape format")
 
+// ErrRead distinguishes transport failures from directly invalid archive bytes.
+var ErrRead = errors.New("archive source read failed")
+
 // Digest covers the complete tape file, including the final record padding.
 type Digest struct {
 	Bytes  int64
@@ -35,6 +38,9 @@ type counter struct {
 
 func (c *counter) Read(p []byte) (int, error) {
 	n, err := c.Reader.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		err = errors.Join(ErrRead, err)
+	}
 	c.n += int64(n)
 	if c.capture {
 		if len(c.header)+n > (1<<20)+2048 {
@@ -48,14 +54,28 @@ func (c *counter) Read(p []byte) (int, error) {
 // Scan stages validated headers through visit. Its caller must discard all
 // staged rows if this scan or the subsequent commit verification fails.
 func Scan(r io.Reader, visit func(*tar.Header) error) (Digest, error) {
-	return scan(r, func(h *tar.Header, _ io.Reader) error {
+	return scanPolicy(r, func(h *tar.Header, _ io.Reader) error {
 		if visit != nil {
 			return visit(h)
 		}
 		return nil
-	}, false)
+	}, false, false)
+}
+
+// ScanLegacy validates a recognized uncompressed TAR while preserving raw names.
+// Legacy evidence is an observed digest without an independent expected value.
+func ScanLegacy(r io.Reader, visit func(*tar.Header) error) (Digest, error) {
+	return scanPolicy(r, func(h *tar.Header, _ io.Reader) error {
+		if visit != nil {
+			return visit(h)
+		}
+		return nil
+	}, false, true)
 }
 func scan(r io.Reader, visit func(*tar.Header, io.Reader) error, metadata bool) (Digest, error) {
+	return scanPolicy(r, visit, metadata, false)
+}
+func scanPolicy(r io.Reader, visit func(*tar.Header, io.Reader) error, metadata, legacy bool) (Digest, error) {
 	hash := sha256.New()
 	raw := counter{Reader: io.TeeReader(r, hash)}
 	tr := tar.NewReader(&raw)
@@ -76,7 +96,7 @@ func scan(r io.Reader, visit func(*tar.Header, io.Reader) error, metadata bool) 
 		if err != nil {
 			return Digest{}, fmt.Errorf("%w: %w", ErrFormat, err)
 		}
-		if h.Format != tar.FormatUSTAR && h.Format != tar.FormatPAX && !gnuUnicodePAX(raw.header[padding:], h) {
+		if h.Format != tar.FormatUSTAR && h.Format != tar.FormatPAX && !(legacy && h.Format == tar.FormatGNU) && !gnuUnicodePAX(raw.header[padding:], h) {
 			return Digest{}, fmt.Errorf("%w: TAR variant", ErrFormat)
 		}
 		if metadata && (h.Format != tar.FormatUSTAR || h.Typeflag != tar.TypeReg) {
@@ -100,10 +120,18 @@ func scan(r io.Reader, visit func(*tar.Header, io.Reader) error, metadata bool) 
 		if h.Typeflag != tar.TypeReg && h.Size != 0 {
 			return Digest{}, ErrFormat
 		}
-		if !fs.ValidPath(name) || name == "." || strings.ContainsRune(name, 0) || len(name) > 4096 || !utf8.ValidString(h.Linkname) || len(h.Linkname) > 4096 || names[name] {
+		if legacy {
+			for strings.HasPrefix(name, "./") {
+				name = strings.TrimPrefix(name, "./")
+			}
+			if name == "" && h.Typeflag == tar.TypeDir {
+				name = "."
+			}
+		}
+		if !fs.ValidPath(name) || name == "." && !(legacy && h.Typeflag == tar.TypeDir) || strings.ContainsRune(name, 0) || len(name) > 4096 || !utf8.ValidString(h.Linkname) || len(h.Linkname) > 4096 || names[name] {
 			return Digest{}, fmt.Errorf("%w: member name", ErrFormat)
 		}
-		nameBytes += int64(len(name))
+		nameBytes += int64(len(name) + len(h.Linkname))
 		if nameBytes > 128<<20 || len(names) >= 1_000_000 {
 			return Digest{}, fmt.Errorf("%w: member budget", ErrFormat)
 		}
@@ -115,6 +143,16 @@ func scan(r io.Reader, visit func(*tar.Header, io.Reader) error, metadata bool) 
 			return Digest{}, err
 		}
 		padding = (512 - h.Size%512) % 512
+	}
+	if legacy {
+		tail, e := io.ReadAll(io.LimitReader(&raw, (1<<20)+1))
+		if e != nil {
+			return Digest{}, e
+		}
+		if len(tail) > 1<<20 || raw.n%512 != 0 || len(bytes.Trim(tail, "\x00")) != 0 {
+			return Digest{}, fmt.Errorf("%w: legacy padding", ErrFormat)
+		}
+		return Digest{raw.n, hex.EncodeToString(hash.Sum(nil))}, nil
 	}
 	tailSize := (tape.RecordBytes - raw.n%tape.RecordBytes) % tape.RecordBytes
 	tail, err := io.ReadAll(io.LimitReader(&raw, tailSize+1))

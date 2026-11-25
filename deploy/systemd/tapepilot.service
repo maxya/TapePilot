@@ -1,0 +1,43 @@
+[Unit]
+Description=TapePilot simulator tape archive manager
+After=network.target
+
+[Service]
+Type=simple
+User=tapepilot
+Group=tapepilot
+WorkingDirectory=/var/lib/tapepilot
+ExecStart=/usr/local/libexec/tapepilot -config /etc/tapepilot/config.yaml serve
+StateDirectory=tapepilot
+StateDirectoryMode=0700
+RuntimeDirectory=tapepilot
+RuntimeDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=2min
+KillMode=mixed
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+ReadOnlyPaths=-/etc/tapepilot -/srv/tapepilot/sources
+ReadWritePaths=-/srv/tapepilot/restores
+
+[Install]
+WantedBy=multi-user.target

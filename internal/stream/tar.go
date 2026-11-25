@@ -116,7 +116,7 @@ func produce(ctx context.Context, plan *source.Plan, writer tape.RecordWriter, b
 	}
 	// Even tar warnings can indicate a source mutation or incomplete membership.
 	if waitErr != nil || consumerErr != nil || logs.nonempty() {
-		return result, errors.Join(pumpErr, fmt.Errorf("%w: %v", ErrProducer, errors.Join(waitErr, consumerErr)))
+		return result, errors.Join(pumpErr, plan.Validate(ctx), fmt.Errorf("%w: %v", ErrProducer, errors.Join(waitErr, consumerErr)))
 	}
 	if pumpErr != nil {
 		return result, pumpErr

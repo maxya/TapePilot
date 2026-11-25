@@ -3,8 +3,14 @@ WORKDIR /web
 COPY web/package*.json ./
 RUN npm ci
 COPY web/ ./
-RUN npm run build
-FROM nginx:1.31.3-alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752
+COPY .node-version /.node-version
+ARG SOURCE_DATE_EPOCH=0
+RUN SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" npm run build
+FROM nginx:1.31.3-alpine-slim@sha256:45b82ed5f285b90d63df07ba70430fdd8f25624b416617d9e6dc93412b2006dc
+RUN apk add --no-cache --upgrade \
+    libcrypto3=3.5.9-r1 libssl3=3.5.9-r1 \
+    musl=1.2.6-r3 musl-utils=1.2.6-r3 \
+    pcre2=10.49-r0 zlib=1.4-r0
 COPY deploy/nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /web/build/ /srv/web/
 USER 101:101

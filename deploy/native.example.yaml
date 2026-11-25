@@ -1,0 +1,10 @@
+{
+  "mode": "simulator",
+  "physical_writes_enabled": false,
+  "verify_after_write": true,
+  "public_origin": "http://127.0.0.1:8787",
+  "state_dir": "/var/lib/tapepilot",
+  "sources": {"nas": "/srv/tapepilot/sources/nas"},
+  "restore_roots": {"recovered": "/srv/tapepilot/restores"},
+  "spool_reserve_bytes": 10737418240
+}

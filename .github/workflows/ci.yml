@@ -1,4 +1,4 @@
-name: Simulator scaffold
+name: TapePilot simulator verification
 on: [push, pull_request]
 permissions:
   contents: read
@@ -16,6 +16,28 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .node-version
+      - name: Extract mbuffer for simulator tests
+        working-directory: ${{ runner.temp }}
+        run: |
+          apt-get download mbuffer
+          mkdir mbuffer-test
+          dpkg-deb -x mbuffer_*.deb mbuffer-test
+          echo "TAPEPILOT_TEST_MBUFFER=$RUNNER_TEMP/mbuffer-test/usr/bin/mbuffer" >> "$GITHUB_ENV"
       - run: make install test test-race lint build compose-check
       - run: cd web && npm audit --audit-level=high
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - name: Validate opt-in deployment configuration without a device
+        run: make compose-readonly-check
+      - name: Exercise browser workflows against the simulator
+        working-directory: web
+        run: |
+          npx --no-install playwright install --with-deps chromium
+          npm run test:e2e
+      - name: Exercise the two-service deployment and independent TAR recovery
+        run: |
+          python3 scripts/test-compose-lifecycle.py
+          python3 scripts/test-independent-recovery.py
+      - name: Build and exercise the native simulator
+        run: |
+          make native native-check
+          python3 scripts/test-native-lifecycle.py

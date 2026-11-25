@@ -1,0 +1,71 @@
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "volume_id": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer"
+    },
+    "data_file_index": {
+      "type": "integer"
+    },
+    "commit_file_index": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "source_label": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "stream_bytes": {
+      "type": "integer"
+    },
+    "sha256": {
+      "type": "string"
+    },
+    "commit_sha256": {
+      "type": "string"
+    },
+    "integrity": {
+      "type": "string"
+    },
+    "integrity_basis": {
+      "type": "string"
+    },
+    "verified_at": {
+      "type": "string"
+    },
+    "restore_eligible": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "volume_id",
+    "job_id",
+    "sequence",
+    "data_file_index",
+    "commit_file_index",
+    "source_label",
+    "created_at",
+    "stream_bytes",
+    "sha256",
+    "commit_sha256",
+    "integrity",
+    "integrity_basis",
+    "verified_at",
+    "restore_eligible"
+  ],
+  "additionalProperties": false
+}

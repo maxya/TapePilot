@@ -27,9 +27,11 @@ var ErrEvidence = errors.New("COMPLETION_EVIDENCE_REQUIRED")
 var ErrNotFound = sql.ErrNoRows
 
 type Store struct {
-	db    *sql.DB
-	owner *os.File
-	mu    sync.Mutex
+	db        *sql.DB
+	owner     *os.File
+	mu        sync.Mutex
+	readSlots chan struct{}
+	readDSN   string
 }
 
 func stamp() string { return time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z") }
@@ -79,7 +81,7 @@ func Open(ctx context.Context, dir string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
-	s := &Store{db: db, owner: owner}
+	s := &Store{db: db, owner: owner, readSlots: make(chan struct{}, 4), readDSN: (&url.URL{Scheme: "file", Path: path}).String() + "?mode=ro&_pragma=query_only(1)&_pragma=busy_timeout(5000)"}
 	if err = s.migrate(ctx); err != nil {
 		s.Close()
 		return nil, err

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/maxya/TapePilot/internal/domain"
 	"io"
 	"math"
 	"os"
@@ -20,7 +21,7 @@ import (
 )
 
 var ErrUnsafe = errors.New("UNSAFE_SOURCE")
-var ErrChanged = errors.New("SOURCE_CHANGED")
+var ErrChanged = domain.ErrSourceChanged
 var ErrLimit = errors.New("PLAN_LIMIT")
 
 type Root struct{ ID, Path string }

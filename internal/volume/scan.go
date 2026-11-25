@@ -17,6 +17,9 @@ import (
 var ErrTail = errors.New("INVALID_VOLUME_TAIL")
 var ErrIdentity = errors.New("MEDIA_CHANGED")
 
+// ErrFinalization means read evidence could not be closed and reidentified.
+var ErrFinalization = errors.New("MEDIA_READ_FINALIZATION_FAILED")
+
 const MaxPairs = 100000
 
 type Pair struct {
@@ -27,6 +30,7 @@ type Pair struct {
 // Member may run before its commit has been validated. Consumers must stage
 // these rows and publish only on Pair. A later tail error preserves valid pairs.
 type Visitor struct {
+	Header func(media.Volume, media.Digest) error
 	Member func(sequence int64, header *tar.Header) error
 	Pair   func(Pair) error
 }
@@ -60,7 +64,9 @@ func Scan(ctx context.Context, adapter tape.Adapter, visitor Visitor) (result Re
 	closed := false
 	defer func() {
 		if !closed {
-			err = errors.Join(err, reader.Close())
+			if closeErr := reader.Close(); closeErr != nil {
+				err = errors.Join(err, ErrFinalization, closeErr)
+			}
 		}
 		if err != nil {
 			result.Proof = nil
@@ -69,6 +75,11 @@ func Scan(ctx context.Context, adapter tape.Adapter, visitor Visitor) (result Re
 	result.Volume, result.Header, e = media.ReadVolume(media.NewFileReader(ctx, reader))
 	if e != nil {
 		return result, e
+	}
+	if visitor.Header != nil {
+		if e = visitor.Header(result.Volume, result.Header); e != nil {
+			return result, e
+		}
 	}
 	archiveIDs := make(map[string]bool)
 	jobIDs := make(map[string]bool)
@@ -118,15 +129,15 @@ func Scan(ctx context.Context, adapter tape.Adapter, visitor Visitor) (result Re
 	}
 	closed = true
 	if e = reader.Close(); e != nil {
-		return result, e
+		return result, errors.Join(ErrFinalization, e)
 	}
 	after, e := adapter.Observe(ctx)
 	if e != nil {
-		return result, e
+		return result, errors.Join(ErrFinalization, e)
 	}
 	finalIdentity, e := adapter.Identity(ctx)
 	if e != nil {
-		return result, e
+		return result, errors.Join(ErrFinalization, e)
 	}
 	if after != before || finalIdentity != identity {
 		return result, ErrIdentity

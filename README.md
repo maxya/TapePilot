@@ -1,6 +1,14 @@
-# SpoolArk — project bootstrap
+# TapePilot
 
-> **TapePilot** is the official name. Apply [NAME_OVERRIDE.md](NAME_OVERRIDE.md) to the historical specifications. [Local development and Phase 0 checks](docs/runbooks/development.md).
+> **TapePilot** is the official name. Apply [NAME_OVERRIDE.md](NAME_OVERRIDE.md) to the historical specifications. [Run TapePilot locally](docs/runbooks/development.md) · [Simulator backup and restore](docs/runbooks/simulator-cli.md) · [Implementation status](docs/IMPLEMENTATION_STATUS.md).
+
+[Simulator console quickstart](docs/runbooks/web-console.md) · [Independent recovery](docs/runbooks/simulator-recovery.md) · [Qualification status](docs/hardware/README.md)
+
+![TapePilot simulator dashboard showing a verified synthetic archive and its loaded cartridge](docs/images/simulator-dashboard.png)
+
+The simulator is available for local review on Linux amd64. Physical write profiles, runtime image security acceptance and production release approval remain pending. [Validation evidence](docs/VALIDATION_REPORT.md) · [Troubleshooting](docs/runbooks/troubleshooting.md)
+
+## Historical project bootstrap
 
 **Open tape backup. Your data. Your tapes. Forever.**
 

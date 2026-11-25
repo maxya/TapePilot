@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maxya/TapePilot/internal/domain"
+	"github.com/maxya/TapePilot/internal/jobs"
 	"github.com/maxya/TapePilot/internal/media"
 	"github.com/maxya/TapePilot/internal/source"
 	"github.com/maxya/TapePilot/internal/store"
@@ -640,5 +641,59 @@ func TestPersistedProgressDistinguishesWriteFromReadback(t *testing.T) {
 	}
 	if p.AcceptedBytes != 2*tape.RecordBytes || p.ReadbackBytes != 0 {
 		t.Fatalf("write acceptance presented as readback: %#v", p)
+	}
+}
+func TestWaitingMediaRecheckPreservesProgressWithoutResumingWrite(t *testing.T) {
+	f := newFixture(t)
+	f.initialize(t)
+	l, err := f.drive.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = l.Unload(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err = l.Close(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(BackupOptions{SourceID: "source", Selection: "data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j, err := f.store.Enqueue(ctx, store.Job{Kind: domain.Backup, VolumeID: f.volumeID, Options: raw})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler := jobs.New(f.store, f.engine)
+	if ran, err := scheduler.RunOne(ctx); err != nil || !ran {
+		t.Fatal(ran, err)
+	}
+	waiting, err := f.store.GetJob(ctx, j.ID)
+	if err != nil || waiting.State != domain.WaitingMedia {
+		t.Fatal(waiting, err)
+	}
+	before, err := f.store.Progress(ctx, j.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.drive.Insert("cartridge"); err != nil {
+		t.Fatal(err)
+	}
+	if err = scheduler.Recheck(ctx, j.ID); err != nil {
+		t.Fatal(err)
+	}
+	if ran, err := scheduler.RunOne(ctx); err != nil || !ran {
+		t.Fatal(ran, err)
+	}
+	done, err := f.store.GetJob(ctx, j.ID)
+	if err != nil || done.State != domain.Succeeded {
+		t.Fatal(done, err)
+	}
+	after, err := f.store.Progress(ctx, j.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !before.StartedAt.Equal(after.StartedAt) || before.AcceptedBytes != 0 || after.AcceptedBytes != 2*tape.RecordBytes {
+		t.Fatal("invalid waiting-media telemetry", before, after)
 	}
 }

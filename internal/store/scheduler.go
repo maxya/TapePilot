@@ -64,7 +64,7 @@ func (s *Store) RecheckMedia(ctx context.Context, id string) error {
 }
 
 // FinishExecution runs only after executor resources and its tape lease close.
-// It never publishes success for the executor.
+// Read-only assessments publish success only after every resource has closed.
 func (s *Store) FinishExecution(ctx context.Context, id string, runErr error) error {
 	return s.transaction(ctx, func(tx *sql.Tx) error {
 		j, err := scanJob(tx.QueryRowContext(ctx, "SELECT "+jobColumns+" FROM jobs WHERE id=?", id))
@@ -74,11 +74,18 @@ func (s *Store) FinishExecution(ctx context.Context, id string, runErr error) er
 		if terminal(j.State) {
 			return nil
 		}
+		if err := applyScopedAssessment(ctx, tx, j, runErr); err != nil {
+			return err
+		}
 		var uncertain, cancelled int
 		if err = tx.QueryRowContext(ctx, "SELECT cancel_requested FROM jobs WHERE id=?", id).Scan(&cancelled); err != nil {
 			return err
 		}
 		if err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(write_may_have_started),0) FROM write_intents WHERE job_id=?", id).Scan(&uncertain); err != nil {
+			return err
+		}
+		assessmentSucceeded, err := finalizeMediaAssessment(ctx, tx, j, runErr == nil && cancelled == 0, cancelled != 0 || errors.Is(runErr, context.Canceled))
+		if err != nil {
 			return err
 		}
 		to := domain.Failed
@@ -98,6 +105,18 @@ func (s *Store) FinishExecution(ctx context.Context, id string, runErr error) er
 		if runErr == nil {
 			code = "MISSING_COMPLETION_EVIDENCE"
 		}
+		if assessmentSucceeded {
+			to = domain.Succeeded
+			code = ""
+		}
+		if to == domain.Failed || to == domain.RecoveryRequired {
+			if errors.Is(runErr, ErrNotEnrolled) {
+				code = string(domain.WriteNotArmed)
+			}
+			if cause := domain.ExecutionFailureCode(runErr); cause != "" {
+				code = string(cause)
+			}
+		}
 		completed := any(stamp())
 		if to == domain.WaitingMedia {
 			completed = nil
@@ -106,7 +125,12 @@ func (s *Store) FinishExecution(ctx context.Context, id string, runErr error) er
 			return err
 		}
 		if to == domain.RecoveryRequired {
-			if _, err = tx.ExecContext(ctx, "UPDATE volumes SET state='QUARANTINED' WHERE id IN(SELECT volume_id FROM jobs WHERE id=?)", id); err != nil {
+			if _, err = tx.ExecContext(ctx, "UPDATE volumes SET state='QUARANTINED' WHERE id IN(SELECT volume_id FROM jobs WHERE id=?) AND state!='SEALED'", id); err != nil {
+				return err
+			}
+		}
+		if to != domain.WaitingMedia {
+			if err = cleanStaging(ctx, tx, id); err != nil {
 				return err
 			}
 		}

@@ -1,0 +1,11 @@
+# Operator-reviewed mapping overlay. Configuration and qualification still gate
+# all physical operations. Never start this overlay in automated validation.
+services:
+  backend:
+    devices:
+      - "${TAPEPILOT_NST_DEVICE:?select the confirmed nonrewinding node}:/dev/nst0:r"
+    group_add:
+      - "${TAPEPILOT_TAPE_GID:?set the selected tape group numeric GID}"
+    volumes:
+      - "${TAPEPILOT_LOCK_DIR:?set the shared host lease directory}:/run/tapepilot-locks:rw"
+      - "${TAPEPILOT_SOURCE_DIR:?set the administrator-owned source root}:/sources/nas:ro"
